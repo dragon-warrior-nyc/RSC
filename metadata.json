@@ -1,0 +1,5 @@
+{
+  "name": "Relevance Score Calculator",
+  "description": "A specialized calculator for splitting Combined nDCG into Search and Ads components based on organic and ads relevance inputs.",
+  "requestFramePermissions": []
+}
