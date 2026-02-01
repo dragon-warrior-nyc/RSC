@@ -68,15 +68,18 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ results }) => {
              <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
                 <span>Check approx. relation:</span>
              </div>
-             <div className="text-xs font-mono bg-gray-50 p-2 rounded border border-gray-200 text-gray-700">
-                Combined ≈ Search + Ads - 1
-                <br/>
-                <span className="font-bold text-gray-900">{fmt(results.combinedRelevance)}</span>
-                <span className="mx-1">≈</span>
-                <span>{fmt(results.searchRelevance + results.adsRelevance - 1)}</span>
-                <span className="ml-2 text-gray-400">
-                   (Diff: {fmt(Math.abs(results.combinedRelevance - (results.searchRelevance + results.adsRelevance - 1)))})
-                </span>
+             <div className="text-xs font-mono bg-gray-50 p-3 rounded border border-gray-200 text-gray-700 flex flex-col gap-2">
+                <div className="w-full text-gray-500 flex items-center">
+                    Combined <span className="mx-2 text-3xl font-bold text-gray-400">≈</span> Search + Ads - 1
+                </div>
+                <div className="flex items-center w-full h-16">
+                    <span className="font-bold text-gray-900 text-lg">{fmt(results.combinedRelevance)}</span>
+                    <span className="mx-4 text-7xl font-bold text-gray-400 leading-none pb-4">≈</span>
+                    <span className="text-lg">{fmt(results.searchRelevance + results.adsRelevance - 1)}</span>
+                    <span className="ml-auto text-gray-400 text-xs">
+                    (Diff: {fmt(Math.abs(results.combinedRelevance - (results.searchRelevance + results.adsRelevance - 1)))})
+                    </span>
+                </div>
              </div>
         </div>
       </div>

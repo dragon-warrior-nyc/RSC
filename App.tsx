@@ -1,45 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Item, RelevanceLabel, RelevanceMapping } from './types';
-import { PAPER_MAPPING, RELEVANCE_OPTIONS } from './constants';
+import { PAPER_MAPPING, RELEVANCE_OPTIONS, COLORS } from './constants';
 import RelevanceSelector from './components/RelevanceSelector';
 import MetricsCard from './components/MetricsCard';
 import SettingsModal from './components/SettingsModal';
 import { calculateRelevanceScores } from './utils/calculations';
-import { Settings, Calculator, RefreshCw } from 'lucide-react';
+import { Settings, Calculator, RefreshCw, Trash2, CheckCheck, Megaphone, FileText } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
   const [organicItems, setOrganicItems] = useState<Item[]>(
     Array.from({ length: 20 }, (_, i) => ({ id: `org-${i}`, label: 'Excellent' }))
   );
-  const [numAds, setNumAds] = useState<number>(1);
+  
+  // Ads items now represent fixed positions 1-20
+  // Default: All Empty as per user request
   const [adsItems, setAdsItems] = useState<Item[]>(
-    Array.from({ length: 1 }, (_, i) => ({ id: `ad-${i}`, label: 'Excellent' }))
+    Array.from({ length: 20 }, (_, i) => ({ 
+      id: `ad-${i}`, 
+      label: 'Empty' 
+    }))
   );
   
   const [mapping, setMapping] = useState<RelevanceMapping>(PAPER_MAPPING);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Filter out 'Empty' for Ads
-  const adOptions = useMemo(() => RELEVANCE_OPTIONS.filter(opt => opt !== 'Empty'), []);
-
-  // Sync ads array size with numAds
-  useEffect(() => {
-    setAdsItems(prev => {
-      if (prev.length === numAds) return prev;
-      if (prev.length < numAds) {
-        // Add new ads
-        const newAds = Array.from({ length: numAds - prev.length }, (_, i) => ({
-          id: `ad-${prev.length + i}`,
-          label: 'Excellent' as RelevanceLabel
-        }));
-        return [...prev, ...newAds];
-      } else {
-        // Remove ads
-        return prev.slice(0, numAds);
-      }
-    });
-  }, [numAds]);
 
   // Handlers
   const handleOrganicChange = (index: number, label: RelevanceLabel) => {
@@ -67,12 +51,57 @@ const App: React.FC = () => {
     return calculateRelevanceScores(organicItems, adsItems, mapping);
   }, [organicItems, adsItems, mapping]);
 
+  // Combined List Calculation for Visualization
+  const combinedItems = useMemo(() => {
+    const items: { 
+      type: 'Ad' | 'Organic'; 
+      label: RelevanceLabel; 
+      originalIndex: number;
+    }[] = [];
+    
+    let organicPtr = 0;
+
+    for (let i = 0; i < 20; i++) {
+      const adItem = adsItems[i];
+      // Check if this position has a valid Ad
+      if (adItem && adItem.label !== 'Empty') {
+        items.push({
+          type: 'Ad',
+          label: adItem.label,
+          originalIndex: i
+        });
+      } else {
+        // Insert next organic item
+        if (organicPtr < organicItems.length) {
+          items.push({
+            type: 'Organic',
+            label: organicItems[organicPtr].label,
+            originalIndex: organicPtr
+          });
+          organicPtr++;
+        } else {
+            // Placeholder if we run out of organic items (unlikely with equal lengths)
+            items.push({
+                type: 'Organic',
+                label: 'Empty',
+                originalIndex: -1
+            });
+        }
+      }
+    }
+    return items;
+  }, [organicItems, adsItems]);
+
+  // Count active items for display
+  const activeAdsCount = adsItems.filter(i => i.label !== 'Empty').length;
+  const activeOrganicCount = organicItems.filter(i => i.label !== 'Empty').length;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
       
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="bg-indigo-600 p-2 rounded-lg">
                 <Calculator className="h-5 w-5 text-white" />
@@ -89,126 +118,164 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Left Column: Organic Items (Span 5) */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="flex items-center justify-between">
+          {/* Column 1: Organic Items (Span 3) */}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="flex items-center justify-between h-8">
               <h2 className="text-lg font-bold text-gray-900 flex items-center">
                 <span className="w-2 h-6 bg-indigo-500 rounded-sm mr-2"></span>
-                Organic Items (20)
+                Organic ({activeOrganicCount})
               </h2>
               <button 
                 onClick={() => handleSetAllOrganic('Excellent')}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center"
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center"
+                title="Reset All to Excellent"
               >
-                <RefreshCw className="w-3 h-3 mr-1" />
-                Reset All to Excellent
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                Reset All
               </button>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="divide-y divide-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
-                {organicItems.map((item, idx) => (
-                  <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
-                    <div className="col-span-2 text-xs font-mono text-gray-400 pl-2">
-                      #{idx + 1}
+                {organicItems.map((item, idx) => {
+                  // Restriction: One cannot choose empty if there are other organic items behind it (i.e. at higher index).
+                  // Check if the next item exists and is NOT Empty.
+                  const nextItem = organicItems[idx + 1];
+                  const isNextItemActive = nextItem && nextItem.label !== 'Empty';
+                  
+                  // If there is an active item following this one, filter out 'Empty' from options
+                  const itemOptions = isNextItemActive 
+                    ? RELEVANCE_OPTIONS.filter(opt => opt !== 'Empty') 
+                    : RELEVANCE_OPTIONS;
+
+                  return (
+                    <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
+                      <div className="col-span-2 text-xs font-mono text-gray-400 pl-1">
+                        #{idx + 1}
+                      </div>
+                      <div className="col-span-10">
+                        <RelevanceSelector 
+                          value={item.label}
+                          onChange={(val) => handleOrganicChange(idx, val)}
+                          mapping={mapping}
+                          options={itemOptions}
+                        />
+                      </div>
                     </div>
-                    <div className="col-span-10">
-                      <RelevanceSelector 
-                        value={item.label}
-                        onChange={(val) => handleOrganicChange(idx, val)}
-                        mapping={mapping}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          {/* Middle Column: Ads Configuration (Span 3) */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="flex items-center justify-between">
+          {/* Column 2: Ads Configuration (Span 3) */}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="flex items-center justify-between h-8">
               <h2 className="text-lg font-bold text-gray-900 flex items-center">
                 <span className="w-2 h-6 bg-amber-500 rounded-sm mr-2"></span>
-                Ads (k)
+                Ads ({activeAdsCount})
               </h2>
-            </div>
-
-            {/* Ads Slider Control */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-              <label className="block text-sm font-medium text-gray-700 mb-4">
-                Number of Ads (k): <span className="font-bold text-indigo-600 text-lg ml-1">{numAds}</span>
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                value={numAds}
-                onChange={(e) => setNumAds(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-2 font-mono">
-                <span>0</span>
-                <span>5</span>
-                <span>10</span>
+              <div className="flex items-center space-x-1">
+                <button 
+                    onClick={() => handleSetAllAds('Empty')}
+                    className="text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-gray-100 px-2 py-1 rounded transition-colors flex items-center"
+                    title="Clear All (Set to Empty)"
+                >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    Clear
+                </button>
+                <button 
+                    onClick={() => handleSetAllAds('Excellent')}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center"
+                    title="Set All to Excellent"
+                >
+                    <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                    All Exc.
+                </button>
               </div>
             </div>
 
-            {/* Ads List */}
-            {numAds > 0 ? (
-                <div className="space-y-3">
-                   <div className="flex justify-end">
-                      <button 
-                        onClick={() => handleSetAllAds('Excellent')}
-                        className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center"
-                      >
-                        Set All Excellent
-                      </button>
-                   </div>
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="divide-y divide-gray-100">
-                      {adsItems.map((item, idx) => (
-                        <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
-                           <div className="col-span-2 text-xs font-mono text-gray-400 pl-2">
-                              #{idx + 1}
-                           </div>
-                           <div className="col-span-10">
-                              <RelevanceSelector 
-                                value={item.label}
-                                onChange={(val) => handleAdChange(idx, val)}
-                                mapping={mapping}
-                                options={adOptions}
-                              />
-                           </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="divide-y divide-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
+                    {adsItems.map((item, idx) => (
+                    <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
+                        <div className="col-span-2 text-xs font-mono text-gray-400 pl-1">
+                            #{idx + 1}
                         </div>
-                      ))}
+                        <div className="col-span-10">
+                            <RelevanceSelector 
+                            value={item.label}
+                            onChange={(val) => handleAdChange(idx, val)}
+                            mapping={mapping}
+                            />
+                        </div>
                     </div>
-                  </div>
+                    ))}
                 </div>
-            ) : (
-                <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-8 text-center">
-                    <span className="text-sm text-gray-500">No ads selected (k=0)</span>
-                </div>
-            )}
+            </div>
           </div>
 
-          {/* Right Column: Results (Span 4) */}
-          <div className="lg:col-span-4">
+          {/* Column 3: Combined View (Span 3) */}
+          <div className="lg:col-span-3 space-y-4">
+             <div className="flex items-center justify-between h-8">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center">
+                    <span className="w-2 h-6 bg-emerald-500 rounded-sm mr-2"></span>
+                    Customer View
+                </h2>
+             </div>
+
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="divide-y divide-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
+                    {combinedItems.map((item, idx) => (
+                        <div 
+                            key={idx} 
+                            className={`grid grid-cols-12 items-center p-3 transition-colors border-l-4 ${
+                                item.type === 'Ad' 
+                                    ? 'bg-amber-50 border-amber-400' 
+                                    : 'hover:bg-gray-50 border-transparent'
+                            }`}
+                        >
+                            <div className="col-span-2 text-xs font-mono text-gray-400 pl-1">
+                                #{idx + 1}
+                            </div>
+                            <div className="col-span-10 flex items-center space-x-2">
+                                {/* Type Badge */}
+                                <div className={`flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md border ${
+                                    item.type === 'Ad' 
+                                        ? 'bg-amber-100 border-amber-200 text-amber-600' 
+                                        : 'bg-indigo-100 border-indigo-200 text-indigo-600'
+                                }`}>
+                                    {item.type === 'Ad' ? <Megaphone size={14} /> : <FileText size={14} />}
+                                </div>
+
+                                {/* Label and Source Index */}
+                                <div className={`flex-grow flex items-center justify-between px-3 py-1.5 rounded-md border text-sm font-medium ${COLORS[item.label]}`}>
+                                    <span>{item.label}</span>
+                                    <span className="text-[10px] opacity-60 ml-2 font-mono">
+                                        {item.type === 'Ad' ? 'Ad' : 'Org'} #{item.originalIndex + 1}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+             </div>
+          </div>
+
+          {/* Column 4: Results (Span 3) */}
+          <div className="lg:col-span-3">
             <MetricsCard results={results} />
             
             <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-blue-900 mb-2">How it works</h4>
               <p className="text-xs text-blue-700 mb-2 leading-relaxed">
-                <strong>Combined Relevance</strong> assumes ads are placed at the top, pushing organic results down.
+                <strong>Combined View</strong>: Shows the final list. Ads displace organic items, pushing them down.
               </p>
               <p className="text-xs text-blue-700 mb-2 leading-relaxed">
-                <strong>Search Relevance</strong> calculates the score of the organic list as if no ads were present.
-              </p>
-              <p className="text-xs text-blue-700 leading-relaxed">
-                <strong>Ads Relevance</strong> measures ad quality padded with perfect scores for the remaining slots.
+                <strong>Ads Relevance</strong>: Measures quality of placed ads. Empty ad slots are perfect matches.
               </p>
             </div>
           </div>

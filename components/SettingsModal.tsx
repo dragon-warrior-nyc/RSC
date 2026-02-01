@@ -1,6 +1,6 @@
 import React from 'react';
 import { RelevanceMapping } from '../types';
-import { STANDARD_MAPPING, PAPER_MAPPING } from '../constants';
+import { PAPER_MAPPING } from '../constants';
 import { X, RotateCcw, AlertTriangle } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -24,7 +24,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, mapping,
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-800">Relevance Score Settings</h3>
+          <h3 className="text-lg font-semibold text-gray-800">Relevance Label Mapping</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
@@ -37,21 +37,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, mapping,
                     Adjust the numeric value for each label. The calculated nDCG metrics depend directly on these weights.
                 </p>
             </div>
-
-          <div className="grid grid-cols-2 gap-3">
-             <button
-                onClick={() => onUpdateMapping(STANDARD_MAPPING)}
-                className="flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-             >
-                Use Standard (0 to 1)
-             </button>
-             <button
-                onClick={() => onUpdateMapping(PAPER_MAPPING)}
-                className="flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-             >
-                Use Paper (QIP)
-             </button>
-          </div>
 
           <div className="space-y-3">
             {Object.keys(mapping).map((key) => (
@@ -75,7 +60,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, mapping,
                 className="flex items-center text-xs text-gray-500 hover:text-indigo-600 mr-auto"
              >
                 <RotateCcw className="w-3 h-3 mr-1" />
-                Reset to Default (Paper)
+                Reset to Default
              </button>
           <button
             onClick={onClose}
