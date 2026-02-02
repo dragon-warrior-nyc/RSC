@@ -20,3 +20,11 @@ export interface CalculationResult {
   adsRelevance: number;
   c20: number;
 }
+
+export interface DisruptionResult {
+  organicNDCG: number;
+  customerViewNDCG: number;
+  disruptionScore: number;
+  organicK: number;
+  customerK: number;
+}

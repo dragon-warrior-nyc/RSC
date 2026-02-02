@@ -3,18 +3,19 @@ import { Item, RelevanceLabel, RelevanceMapping } from './types';
 import { PAPER_MAPPING, RELEVANCE_OPTIONS, COLORS } from './constants';
 import RelevanceSelector from './components/RelevanceSelector';
 import MetricsCard from './components/MetricsCard';
+import DisruptionMetricsCard from './components/DisruptionMetricsCard';
 import SettingsModal from './components/SettingsModal';
-import { calculateRelevanceScores } from './utils/calculations';
-import { Settings, Calculator, RefreshCw, Trash2, CheckCheck, Megaphone, FileText } from 'lucide-react';
+import { calculateRelevanceScores, calculateDisruptionScores } from './utils/calculations';
+import { Settings, Calculator, RefreshCw, Trash2, CheckCheck, Megaphone, FileText, Layers, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
+  const [activeTab, setActiveTab] = useState<'split' | 'disruption'>('disruption');
+
   const [organicItems, setOrganicItems] = useState<Item[]>(
     Array.from({ length: 20 }, (_, i) => ({ id: `org-${i}`, label: 'Excellent' }))
   );
   
-  // Ads items now represent fixed positions 1-20
-  // Default: All Empty as per user request
   const [adsItems, setAdsItems] = useState<Item[]>(
     Array.from({ length: 20 }, (_, i) => ({ 
       id: `ad-${i}`, 
@@ -47,8 +48,12 @@ const App: React.FC = () => {
   };
 
   // Calculations
-  const results = useMemo(() => {
+  const splitResults = useMemo(() => {
     return calculateRelevanceScores(organicItems, adsItems, mapping);
+  }, [organicItems, adsItems, mapping]);
+
+  const disruptionResults = useMemo(() => {
+    return calculateDisruptionScores(organicItems, adsItems, mapping);
   }, [organicItems, adsItems, mapping]);
 
   // Combined List Calculation for Visualization
@@ -108,13 +113,44 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Relevance Score Calculator</h1>
           </div>
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Mapping Settings
-          </button>
+          
+          <div className="flex items-center gap-4">
+              {/* Tab Navigation */}
+              <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button
+                    onClick={() => setActiveTab('split')}
+                    className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        activeTab === 'split' 
+                            ? 'bg-white text-indigo-600 shadow-sm' 
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <Layers className="w-4 h-4 mr-2" />
+                    Split Model
+                </button>
+                <button
+                    onClick={() => setActiveTab('disruption')}
+                    className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        activeTab === 'disruption' 
+                            ? 'bg-white text-indigo-600 shadow-sm' 
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <Zap className="w-4 h-4 mr-2" />
+                    Disruption Model
+                </button>
+              </div>
+
+              <div className="h-6 w-px bg-gray-300 mx-1"></div>
+
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </button>
+          </div>
         </div>
       </header>
 
@@ -128,14 +164,24 @@ const App: React.FC = () => {
                 <span className="w-2 h-6 bg-indigo-500 rounded-sm mr-2"></span>
                 Organic ({activeOrganicCount})
               </h2>
-              <button 
-                onClick={() => handleSetAllOrganic('Excellent')}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center"
-                title="Reset All to Excellent"
-              >
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                Reset All
-              </button>
+              <div className="flex items-center space-x-1">
+                <button 
+                    onClick={() => handleSetAllOrganic('Empty')}
+                    className="text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-gray-100 px-2 py-1 rounded transition-colors flex items-center"
+                    title="Clear All (Set to Empty)"
+                >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    Clear
+                </button>
+                <button 
+                    onClick={() => handleSetAllOrganic('Excellent')}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center"
+                    title="Reset All to Excellent"
+                >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    Reset
+                </button>
+              </div>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -265,19 +311,35 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {/* Column 4: Results (Span 3) */}
+          {/* Column 4: Results (Span 3) - SWITCH BASED ON TAB */}
           <div className="lg:col-span-3">
-            <MetricsCard results={results} />
-            
-            <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">How it works</h4>
-              <p className="text-xs text-blue-700 mb-2 leading-relaxed">
-                <strong>Combined View</strong>: Shows the final list. Ads displace organic items, pushing them down.
-              </p>
-              <p className="text-xs text-blue-700 mb-2 leading-relaxed">
-                <strong>Ads Relevance</strong>: Measures quality of placed ads. Empty ad slots are perfect matches.
-              </p>
-            </div>
+            {activeTab === 'split' ? (
+                <>
+                    <MetricsCard results={splitResults} />
+                    <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-blue-900 mb-2">Split Model Logic</h4>
+                        <p className="text-xs text-blue-700 mb-2 leading-relaxed">
+                            <strong>Combined</strong>: Final list nDCG.
+                        </p>
+                        <p className="text-xs text-blue-700 mb-2 leading-relaxed">
+                            <strong>Equation</strong>: Demonstrates the approximation that Combined ≈ Search + Ads - 1.
+                        </p>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <DisruptionMetricsCard results={disruptionResults} />
+                    <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-indigo-900 mb-2">Disruption Model Logic</h4>
+                        <p className="text-xs text-indigo-700 mb-2 leading-relaxed">
+                            Calculates standard nDCG@k where k is the actual number of displayed items. A null result would lead to a 0 score.
+                        </p>
+                        <p className="text-xs text-indigo-700 leading-relaxed">
+                            <strong>Ads Disruption Score</strong> = Customer View Relevance - Organic Relevance.
+                        </p>
+                    </div>
+                </>
+            )}
           </div>
 
         </div>

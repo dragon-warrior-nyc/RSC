@@ -104,3 +104,85 @@ export const calculateRelevanceScores = (
     c20
   };
 };
+
+/**
+ * Calculates standard DCG for a list of items
+ */
+const calculateDCG = (items: Item[], mapping: RelevanceMapping): number => {
+  let dcg = 0;
+  items.forEach((item, index) => {
+    const position = index + 1;
+    const score = getScore(item.label, mapping);
+    dcg += score / Math.log2(1 + position);
+  });
+  return dcg;
+};
+
+/**
+ * Calculates Disruption Scores (Tab 2)
+ * 
+ * Logic:
+ * 1. Filter Organic items (remove Empty). Calculate nDCG@k_org using Ck normalization.
+ * 2. Construct Combined list (Ad + Org), filter Empty. Calculate nDCG@k_cust using Ck normalization.
+ * 3. Disruption = CustomerView - Organic.
+ * 
+ * Note: We normalize by Ck (Ideal DCG of k "Excellent" items) per Equation 2.1, 
+ * rather than the IDCG of the specific set of items (sorting them).
+ * This allows negative scores for Embarrassing items to be reflected correctly (e.g., -3).
+ */
+export const calculateDisruptionScores = (
+  organicItems: Item[],
+  adsItems: Item[],
+  mapping: RelevanceMapping
+) => {
+  // 1. Organic nDCG
+  const activeOrganic = organicItems.filter(item => item.label !== 'Empty');
+  const organicK = activeOrganic.length;
+  
+  let organicNDCG = 0;
+  if (organicK > 0) {
+    const dcg = calculateDCG(activeOrganic, mapping);
+    const ck = calculateCk(organicK);
+    organicNDCG = ck > 0 ? dcg / ck : 0;
+  }
+
+  // 2. Customer View Construction & nDCG
+  const combinedItems: Item[] = [];
+  let organicPtr = 0;
+  const K_LIMIT = 20;
+
+  for (let i = 0; i < K_LIMIT; i++) {
+    const adItem = adsItems[i];
+    const hasAd = adItem && adItem.label !== 'Empty';
+    
+    if (hasAd) {
+      combinedItems.push(adItem);
+    } else {
+      if (organicPtr < organicItems.length) {
+        combinedItems.push(organicItems[organicPtr]);
+        organicPtr++;
+      }
+    }
+  }
+
+  const activeCustomer = combinedItems.filter(item => item.label !== 'Empty');
+  const customerK = activeCustomer.length;
+
+  let customerViewNDCG = 0;
+  if (customerK > 0) {
+    const dcg = calculateDCG(activeCustomer, mapping);
+    const ck = calculateCk(customerK);
+    customerViewNDCG = ck > 0 ? dcg / ck : 0;
+  }
+
+  // 3. Disrupter
+  const disruptionScore = customerViewNDCG - organicNDCG;
+
+  return {
+    organicNDCG,
+    customerViewNDCG,
+    disruptionScore,
+    organicK,
+    customerK
+  };
+};
