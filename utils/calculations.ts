@@ -186,3 +186,96 @@ export const calculateDisruptionScores = (
     customerK
   };
 };
+
+/**
+ * Calculates nDCG@k Scores (Tab 3)
+ */
+export const calculateNDCGKScores = (
+  organicItems: Item[],
+  adsItems: Item[],
+  mapping: RelevanceMapping
+) => {
+  // 1. Organic Relevance
+  // Same as disruption: filter empty, nDCG@count. If empty, 0.
+  const activeOrganic = organicItems.filter(item => item.label !== 'Empty');
+  const organicK = activeOrganic.length;
+  let organicRelevance = 0;
+  if (organicK > 0) {
+    const dcg = calculateDCG(activeOrganic, mapping);
+    const ck = calculateCk(organicK);
+    organicRelevance = ck > 0 ? dcg / ck : 0;
+  }
+
+  // 2. Ads Relevance
+  // nDCG@k where k is position of last ad. Pad with 1 if empty slot before last ad.
+  // If no ads results (all empty), score is 1.0.
+  let lastAdIndex = -1;
+  for (let i = adsItems.length - 1; i >= 0; i--) {
+    if (adsItems[i].label !== 'Empty') {
+      lastAdIndex = i;
+      break;
+    }
+  }
+
+  const adsK = lastAdIndex + 1; // 1-based count for Ck
+  let adsRelevance = 0;
+  
+  if (adsK === 0) {
+    adsRelevance = 1.0;
+  } else {
+    let dcg = 0;
+    // Iterate from 0 to lastAdIndex
+    for (let i = 0; i < adsK; i++) {
+      const item = adsItems[i];
+      let val = 0;
+      if (item.label !== 'Empty') {
+        val = getScore(item.label, mapping);
+      } else {
+        val = 1.0; // Pad with 1 for empty slots before last ad
+      }
+      const position = i + 1;
+      dcg += val / Math.log2(1 + position);
+    }
+    const ck = calculateCk(adsK);
+    adsRelevance = ck > 0 ? dcg / ck : 0;
+  }
+
+  // 3. Combined Relevance
+  // Customer view, no padding after last item (same as disruption combined)
+  const combinedItems: Item[] = [];
+  let organicPtr = 0;
+  const K_LIMIT = 20;
+
+  for (let i = 0; i < K_LIMIT; i++) {
+    const adItem = adsItems[i];
+    const hasAd = adItem && adItem.label !== 'Empty';
+    
+    if (hasAd) {
+      combinedItems.push(adItem);
+    } else {
+      if (organicPtr < organicItems.length) {
+        combinedItems.push(organicItems[organicPtr]);
+        organicPtr++;
+      }
+    }
+  }
+
+  const activeCombined = combinedItems.filter(item => item.label !== 'Empty');
+  const combinedK = activeCombined.length;
+
+  let combinedRelevance = 0;
+  if (combinedK > 0) {
+    const dcg = calculateDCG(activeCombined, mapping);
+    const ck = calculateCk(combinedK);
+    combinedRelevance = ck > 0 ? dcg / ck : 0;
+  }
+
+  return {
+    organicRelevance,
+    adsRelevance,
+    combinedRelevance,
+    organicK,
+    adsK,
+    combinedK
+  };
+};

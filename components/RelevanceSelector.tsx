@@ -8,9 +8,16 @@ interface RelevanceSelectorProps {
   onChange: (value: RelevanceLabel) => void;
   mapping: RelevanceMapping;
   options?: RelevanceLabel[];
+  formatLabel?: (option: RelevanceLabel, score: number) => string;
 }
 
-const RelevanceSelector: React.FC<RelevanceSelectorProps> = ({ value, onChange, mapping, options = RELEVANCE_OPTIONS }) => {
+const RelevanceSelector: React.FC<RelevanceSelectorProps> = ({ 
+  value, 
+  onChange, 
+  mapping, 
+  options = RELEVANCE_OPTIONS,
+  formatLabel
+}) => {
   return (
     <div className="relative group w-full">
       <select
@@ -20,7 +27,7 @@ const RelevanceSelector: React.FC<RelevanceSelectorProps> = ({ value, onChange, 
       >
         {options.map((option) => (
           <option key={option} value={option} className="bg-white text-gray-900">
-            {option} ({mapping[option]})
+            {formatLabel ? formatLabel(option, mapping[option]) : `${option} (${mapping[option]})`}
           </option>
         ))}
       </select>

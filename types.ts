@@ -28,3 +28,12 @@ export interface DisruptionResult {
   organicK: number;
   customerK: number;
 }
+
+export interface NDCGKResult {
+  organicRelevance: number;
+  adsRelevance: number;
+  combinedRelevance: number;
+  organicK: number;
+  adsK: number;
+  combinedK: number;
+}

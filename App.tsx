@@ -4,13 +4,14 @@ import { PAPER_MAPPING, RELEVANCE_OPTIONS, COLORS } from './constants';
 import RelevanceSelector from './components/RelevanceSelector';
 import MetricsCard from './components/MetricsCard';
 import DisruptionMetricsCard from './components/DisruptionMetricsCard';
+import NDCGKMetricsCard from './components/NDCGKMetricsCard';
 import SettingsModal from './components/SettingsModal';
-import { calculateRelevanceScores, calculateDisruptionScores } from './utils/calculations';
-import { Settings, Calculator, RefreshCw, Trash2, CheckCheck, Megaphone, FileText, Layers, Zap } from 'lucide-react';
+import { calculateRelevanceScores, calculateDisruptionScores, calculateNDCGKScores } from './utils/calculations';
+import { Settings, Calculator, RefreshCw, Trash2, CheckCheck, Megaphone, FileText, Layers, Zap, BarChart3 } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
-  const [activeTab, setActiveTab] = useState<'split' | 'disruption'>('disruption');
+  const [activeTab, setActiveTab] = useState<'split' | 'disruption' | 'ndcgk'>('disruption');
 
   const [organicItems, setOrganicItems] = useState<Item[]>(
     Array.from({ length: 20 }, (_, i) => ({ id: `org-${i}`, label: 'Excellent' }))
@@ -56,6 +57,10 @@ const App: React.FC = () => {
     return calculateDisruptionScores(organicItems, adsItems, mapping);
   }, [organicItems, adsItems, mapping]);
 
+  const ndcgkResults = useMemo(() => {
+    return calculateNDCGKScores(organicItems, adsItems, mapping);
+  }, [organicItems, adsItems, mapping]);
+
   // Combined List Calculation for Visualization
   const combinedItems = useMemo(() => {
     const items: { 
@@ -96,6 +101,14 @@ const App: React.FC = () => {
     }
     return items;
   }, [organicItems, adsItems]);
+
+  // Determine the last active Ad index for nDCG@k padding visualization
+  const lastAdIndex = useMemo(() => {
+    for (let i = adsItems.length - 1; i >= 0; i--) {
+        if (adsItems[i].label !== 'Empty') return i;
+    }
+    return -1;
+  }, [adsItems]);
 
   // Count active items for display
   const activeAdsCount = adsItems.filter(i => i.label !== 'Empty').length;
@@ -138,6 +151,17 @@ const App: React.FC = () => {
                 >
                     <Zap className="w-4 h-4 mr-2" />
                     Disruption Model
+                </button>
+                <button
+                    onClick={() => setActiveTab('ndcgk')}
+                    className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        activeTab === 'ndcgk' 
+                            ? 'bg-white text-indigo-600 shadow-sm' 
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    nDCG@k Model
                 </button>
               </div>
 
@@ -196,6 +220,12 @@ const App: React.FC = () => {
                   const itemOptions = isNextItemActive 
                     ? RELEVANCE_OPTIONS.filter(opt => opt !== 'Empty') 
                     : RELEVANCE_OPTIONS;
+                  
+                  // Formatting for nDCG@k and Disruption: Organic Empty has no score
+                  const formatLabel = (opt: RelevanceLabel, score: number) => {
+                    if ((activeTab === 'ndcgk' || activeTab === 'disruption') && opt === 'Empty') return 'Empty';
+                    return `${opt} (${score})`;
+                  };
 
                   return (
                     <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
@@ -208,6 +238,7 @@ const App: React.FC = () => {
                           onChange={(val) => handleOrganicChange(idx, val)}
                           mapping={mapping}
                           options={itemOptions}
+                          formatLabel={formatLabel}
                         />
                       </div>
                     </div>
@@ -246,20 +277,36 @@ const App: React.FC = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="divide-y divide-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
-                    {adsItems.map((item, idx) => (
-                    <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
-                        <div className="col-span-2 text-xs font-mono text-gray-400 pl-1">
-                            #{idx + 1}
+                    {adsItems.map((item, idx) => {
+                      // Formatting for nDCG@k: Ads Empty before last Ad are 1.0, others are Empty
+                      // Formatting for Disruption: Empty is just Empty (skipped)
+                      const formatLabel = (opt: RelevanceLabel, score: number) => {
+                        if (activeTab === 'ndcgk' && opt === 'Empty') {
+                            if (idx < lastAdIndex) return 'Empty (1.0)';
+                            return 'Empty';
+                        }
+                        if (activeTab === 'disruption' && opt === 'Empty') {
+                            return 'Empty';
+                        }
+                        return `${opt} (${score})`;
+                      };
+
+                      return (
+                        <div key={item.id} className="grid grid-cols-12 items-center p-3 hover:bg-gray-50 transition-colors">
+                            <div className="col-span-2 text-xs font-mono text-gray-400 pl-1">
+                                #{idx + 1}
+                            </div>
+                            <div className="col-span-10">
+                                <RelevanceSelector 
+                                value={item.label}
+                                onChange={(val) => handleAdChange(idx, val)}
+                                mapping={mapping}
+                                formatLabel={formatLabel}
+                                />
+                            </div>
                         </div>
-                        <div className="col-span-10">
-                            <RelevanceSelector 
-                            value={item.label}
-                            onChange={(val) => handleAdChange(idx, val)}
-                            mapping={mapping}
-                            />
-                        </div>
-                    </div>
-                    ))}
+                      );
+                    })}
                 </div>
             </div>
           </div>
@@ -313,7 +360,7 @@ const App: React.FC = () => {
 
           {/* Column 4: Results (Span 3) - SWITCH BASED ON TAB */}
           <div className="lg:col-span-3">
-            {activeTab === 'split' ? (
+            {activeTab === 'split' && (
                 <>
                     <MetricsCard results={splitResults} />
                     <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
@@ -326,7 +373,9 @@ const App: React.FC = () => {
                         </p>
                     </div>
                 </>
-            ) : (
+            )}
+            
+            {activeTab === 'disruption' && (
                 <>
                     <DisruptionMetricsCard results={disruptionResults} />
                     <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-lg p-4">
@@ -336,6 +385,24 @@ const App: React.FC = () => {
                         </p>
                         <p className="text-xs text-indigo-700 leading-relaxed">
                             <strong>Ads Disruption Score</strong> = Customer View Relevance - Organic Relevance.
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {activeTab === 'ndcgk' && (
+                <>
+                    <NDCGKMetricsCard results={ndcgkResults} />
+                    <div className="mt-6 bg-gray-50 border border-gray-100 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2">nDCG@k Model Logic</h4>
+                         <p className="text-xs text-gray-700 mb-2 leading-relaxed">
+                            <strong>Organic</strong>: Filter empty items, nDCG@count. (0 if none)
+                        </p>
+                        <p className="text-xs text-gray-700 mb-2 leading-relaxed">
+                            <strong>Ads</strong>: nDCG calculated up to the last ad position. Empty slots before the last ad are padded with 1.0 (Excellent). (1.0 if none)
+                        </p>
+                        <p className="text-xs text-gray-700 mb-2 leading-relaxed">
+                            <strong>Combined</strong>: Customer view, filter empty items, nDCG@count.
                         </p>
                     </div>
                 </>
