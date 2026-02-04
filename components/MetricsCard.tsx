@@ -27,17 +27,17 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ results }) => {
         {/* Big Numbers */}
         <div className="grid grid-cols-1 gap-4">
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
-             <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Combined Relevance</span>
+             <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Combined Relevance (from Customer View)</span>
              <div className="mt-1 text-3xl font-extrabold text-emerald-900">{fmt(results.combinedRelevance)}</div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
-                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Search</span>
+                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Search Relevance (from Organic)</span>
                 <div className="mt-1 text-2xl font-bold text-indigo-900">{fmt(results.searchRelevance)}</div>
              </div>
              <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
-                <span className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Ads</span>
+                <span className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Ads Relevance (from Ads)</span>
                 <div className="mt-1 text-2xl font-bold text-amber-900">{fmt(results.adsRelevance)}</div>
              </div>
           </div>
@@ -61,26 +61,6 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ results }) => {
                 </Bar>
             </BarChart>
             </ResponsiveContainer>
-        </div>
-
-        {/* Relationship Check */}
-        <div className="pt-4 border-t border-gray-100">
-             <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
-                <span>Check approx. relation:</span>
-             </div>
-             <div className="text-xs font-mono bg-gray-50 p-3 rounded border border-gray-200 text-gray-700 flex flex-col gap-2">
-                <div className="w-full text-gray-500 flex items-center">
-                    Combined <span className="mx-2 text-3xl font-bold text-gray-400">≈</span> Search + Ads - 1
-                </div>
-                <div className="flex items-center w-full h-16">
-                    <span className="font-bold text-gray-900 text-lg">{fmt(results.combinedRelevance)}</span>
-                    <span className="mx-4 text-7xl font-bold text-gray-400 leading-none pb-4">≈</span>
-                    <span className="text-lg">{fmt(results.searchRelevance + results.adsRelevance - 1)}</span>
-                    <span className="ml-auto text-gray-400 text-xs">
-                    (Diff: {fmt(Math.abs(results.combinedRelevance - (results.searchRelevance + results.adsRelevance - 1)))})
-                    </span>
-                </div>
-             </div>
         </div>
       </div>
     </div>

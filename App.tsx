@@ -114,6 +114,8 @@ const App: React.FC = () => {
   const activeAdsCount = adsItems.filter(i => i.label !== 'Empty').length;
   const activeOrganicCount = organicItems.filter(i => i.label !== 'Empty').length;
 
+  const fmt = (n: number) => n.toFixed(3);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
       
@@ -280,6 +282,7 @@ const App: React.FC = () => {
                     {adsItems.map((item, idx) => {
                       // Formatting for nDCG@k: Ads Empty before last Ad are 1.0, others are Empty
                       // Formatting for Disruption: Empty is just Empty (skipped)
+                      // Formatting for Split: Empty is Empty (1.0)
                       const formatLabel = (opt: RelevanceLabel, score: number) => {
                         if (activeTab === 'ndcgk' && opt === 'Empty') {
                             if (idx < lastAdIndex) return 'Empty (1.0)';
@@ -287,6 +290,9 @@ const App: React.FC = () => {
                         }
                         if (activeTab === 'disruption' && opt === 'Empty') {
                             return 'Empty';
+                        }
+                        if (activeTab === 'split' && opt === 'Empty') {
+                            return 'Empty (1.0)';
                         }
                         return `${opt} (${score})`;
                       };
@@ -364,13 +370,27 @@ const App: React.FC = () => {
                 <>
                     <MetricsCard results={splitResults} />
                     <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-blue-900 mb-2">Split Model Logic</h4>
-                        <p className="text-xs text-blue-700 mb-2 leading-relaxed">
-                            <strong>Combined</strong>: Final list nDCG.
-                        </p>
-                        <p className="text-xs text-blue-700 mb-2 leading-relaxed">
-                            <strong>Equation</strong>: Demonstrates the approximation that Combined ≈ Search + Ads - 1.
-                        </p>
+                        <h4 className="text-sm font-semibold text-blue-900 mb-3">Split Model Logic (Fixed K=20)</h4>
+                        <div className="space-y-3 text-xs text-blue-800">
+                            <div>
+                                <span className="font-bold block mb-1">Search Relevance (Organic):</span>
+                                <span className="leading-relaxed opacity-90">
+                                    Computed using the original sequence of 20 organic items. Empty items contribute 0. Normalized by C₂₀.
+                                </span>
+                            </div>
+                            <div>
+                                <span className="font-bold block mb-1">Ads Relevance:</span>
+                                <span className="leading-relaxed opacity-90">
+                                    Computed over 20 fixed positions. If an Ad exists, its score is used. Empty Ad slots are treated as "Excellent" (1.0). Normalized by C₂₀.
+                                </span>
+                            </div>
+                            <div>
+                                <span className="font-bold block mb-1">Combined Relevance:</span>
+                                <span className="leading-relaxed opacity-90">
+                                    Computed on the constructed list where Ads displace Organic items. If a position has an Ad, it is used; otherwise, the next available Organic item is pulled. Normalized by C₂₀.
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}
