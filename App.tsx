@@ -25,6 +25,7 @@ const App: React.FC = () => {
   );
   
   const [mapping, setMapping] = useState<RelevanceMapping>(PAPER_MAPPING);
+  const [ignoreEmptyAds, setIgnoreEmptyAds] = useState(false); // New state for NDCG@k setting
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Handlers
@@ -58,8 +59,8 @@ const App: React.FC = () => {
   }, [organicItems, adsItems, mapping]);
 
   const ndcgkResults = useMemo(() => {
-    return calculateNDCGKScores(organicItems, adsItems, mapping);
-  }, [organicItems, adsItems, mapping]);
+    return calculateNDCGKScores(organicItems, adsItems, mapping, ignoreEmptyAds);
+  }, [organicItems, adsItems, mapping, ignoreEmptyAds]);
 
   // Combined List Calculation for Visualization
   const combinedItems = useMemo(() => {
@@ -280,11 +281,10 @@ const App: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="divide-y divide-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
                     {adsItems.map((item, idx) => {
-                      // Formatting for nDCG@k: Ads Empty before last Ad are 1.0, others are Empty
-                      // Formatting for Disruption: Empty is just Empty (skipped)
-                      // Formatting for Split: Empty is Empty (1.0)
+                      // Formatting for nDCG@k: Ads Empty before last Ad are 1.0 (if pad), or Empty (if ignore)
                       const formatLabel = (opt: RelevanceLabel, score: number) => {
                         if (activeTab === 'ndcgk' && opt === 'Empty') {
+                            if (ignoreEmptyAds) return 'Empty';
                             if (idx < lastAdIndex) return 'Empty (1.0)';
                             return 'Empty';
                         }
@@ -412,15 +412,19 @@ const App: React.FC = () => {
 
             {activeTab === 'ndcgk' && (
                 <>
-                    <NDCGKMetricsCard results={ndcgkResults} />
+                    <NDCGKMetricsCard results={ndcgkResults} ignoreEmptyAds={ignoreEmptyAds} />
                     <div className="mt-6 bg-gray-50 border border-gray-100 rounded-lg p-4">
                         <h4 className="text-sm font-semibold text-gray-900 mb-2">nDCG@k Model Logic</h4>
                          <p className="text-xs text-gray-700 mb-2 leading-relaxed">
                             <strong>Organic</strong>: Filter empty items, nDCG@count. (0 if none)
                         </p>
-                        <p className="text-xs text-gray-700 mb-2 leading-relaxed">
-                            <strong>Ads</strong>: nDCG calculated up to the last ad position. Empty slots before the last ad are padded with 1.0 (Excellent). (1.0 if none)
-                        </p>
+                        <div className="text-xs text-gray-700 mb-2 leading-relaxed">
+                            <strong>Ads</strong>: 
+                            {ignoreEmptyAds 
+                                ? ' Ignore empty. nDCG@count(active_ads). (1.0 if none)'
+                                : ' nDCG calculated up to the last ad position. Empty slots before the last ad are padded with 1.0 (Excellent). (1.0 if none)'
+                            }
+                        </div>
                         <p className="text-xs text-gray-700 mb-2 leading-relaxed">
                             <strong>Combined</strong>: Customer view, filter empty items, nDCG@count.
                         </p>
@@ -437,6 +441,8 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         mapping={mapping}
         onUpdateMapping={setMapping}
+        ignoreEmptyAds={ignoreEmptyAds}
+        onToggleIgnoreEmptyAds={setIgnoreEmptyAds}
       />
     </div>
   );

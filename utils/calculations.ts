@@ -17,6 +17,19 @@ const getScore = (label: string, mapping: RelevanceMapping): number => {
 };
 
 /**
+ * Calculates standard DCG for a list of items
+ */
+const calculateDCG = (items: Item[], mapping: RelevanceMapping): number => {
+  let dcg = 0;
+  items.forEach((item, index) => {
+    const position = index + 1;
+    const score = getScore(item.label, mapping);
+    dcg += score / Math.log2(1 + position);
+  });
+  return dcg;
+};
+
+/**
  * Calculates nDCG based metrics.
  * 
  * Assumptions:
@@ -106,19 +119,6 @@ export const calculateRelevanceScores = (
 };
 
 /**
- * Calculates standard DCG for a list of items
- */
-const calculateDCG = (items: Item[], mapping: RelevanceMapping): number => {
-  let dcg = 0;
-  items.forEach((item, index) => {
-    const position = index + 1;
-    const score = getScore(item.label, mapping);
-    dcg += score / Math.log2(1 + position);
-  });
-  return dcg;
-};
-
-/**
  * Calculates Disruption Scores (Tab 2)
  * 
  * Logic:
@@ -193,7 +193,8 @@ export const calculateDisruptionScores = (
 export const calculateNDCGKScores = (
   organicItems: Item[],
   adsItems: Item[],
-  mapping: RelevanceMapping
+  mapping: RelevanceMapping,
+  ignoreEmptyAds: boolean = false
 ) => {
   // 1. Organic Relevance
   // Same as disruption: filter empty, nDCG@count. If empty, 0.
@@ -207,37 +208,56 @@ export const calculateNDCGKScores = (
   }
 
   // 2. Ads Relevance
-  // nDCG@k where k is position of last ad. Pad with 1 if empty slot before last ad.
-  // If no ads results (all empty), score is 1.0.
-  let lastAdIndex = -1;
-  for (let i = adsItems.length - 1; i >= 0; i--) {
-    if (adsItems[i].label !== 'Empty') {
-      lastAdIndex = i;
-      break;
-    }
-  }
-
-  const adsK = lastAdIndex + 1; // 1-based count for Ck
   let adsRelevance = 0;
-  
-  if (adsK === 0) {
-    adsRelevance = 1.0;
+  let adsK = 0;
+
+  if (ignoreEmptyAds) {
+     // Option: Ignore Empty
+     // Ignore all empty slots. Compute nDCG@k with only non-empty ads.
+     const activeAds = adsItems.filter(item => item.label !== 'Empty');
+     adsK = activeAds.length;
+
+     if (adsK === 0) {
+        adsRelevance = 1.0; // Convention: No ads = Perfect
+     } else {
+        const dcg = calculateDCG(activeAds, mapping);
+        const ck = calculateCk(adsK);
+        adsRelevance = ck > 0 ? dcg / ck : 0;
+     }
+
   } else {
-    let dcg = 0;
-    // Iterate from 0 to lastAdIndex
-    for (let i = 0; i < adsK; i++) {
-      const item = adsItems[i];
-      let val = 0;
-      if (item.label !== 'Empty') {
-        val = getScore(item.label, mapping);
-      } else {
-        val = 1.0; // Pad with 1 for empty slots before last ad
-      }
-      const position = i + 1;
-      dcg += val / Math.log2(1 + position);
+    // Option: Pad with 1.0 (Default)
+    // nDCG@k where k is position of last ad. Pad with 1 if empty slot before last ad.
+    // If no ads results (all empty), score is 1.0.
+    let lastAdIndex = -1;
+    for (let i = adsItems.length - 1; i >= 0; i--) {
+        if (adsItems[i].label !== 'Empty') {
+        lastAdIndex = i;
+        break;
+        }
     }
-    const ck = calculateCk(adsK);
-    adsRelevance = ck > 0 ? dcg / ck : 0;
+
+    adsK = lastAdIndex + 1; // 1-based count for Ck
+    
+    if (adsK === 0) {
+        adsRelevance = 1.0;
+    } else {
+        let dcg = 0;
+        // Iterate from 0 to lastAdIndex
+        for (let i = 0; i < adsK; i++) {
+        const item = adsItems[i];
+        let val = 0;
+        if (item.label !== 'Empty') {
+            val = getScore(item.label, mapping);
+        } else {
+            val = 1.0; // Pad with 1 for empty slots before last ad
+        }
+        const position = i + 1;
+        dcg += val / Math.log2(1 + position);
+        }
+        const ck = calculateCk(adsK);
+        adsRelevance = ck > 0 ? dcg / ck : 0;
+    }
   }
 
   // 3. Combined Relevance

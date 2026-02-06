@@ -4,9 +4,10 @@ import { Layers } from 'lucide-react';
 
 interface NDCGKMetricsCardProps {
   results: NDCGKResult;
+  ignoreEmptyAds: boolean;
 }
 
-const NDCGKMetricsCard: React.FC<NDCGKMetricsCardProps> = ({ results }) => {
+const NDCGKMetricsCard: React.FC<NDCGKMetricsCardProps> = ({ results, ignoreEmptyAds }) => {
   // Helper to format numbers
   const fmt = (n: number) => n.toFixed(3);
 
@@ -43,7 +44,12 @@ const NDCGKMetricsCard: React.FC<NDCGKMetricsCardProps> = ({ results }) => {
                     {fmt(results.adsRelevance)}
                 </div>
                 <p className="text-[10px] text-amber-600/70 mt-1">
-                   {results.adsK === 0 ? 'No active ads (Score 1.0)' : 'Padded with 1.0 for empty slots before the last ad.'}
+                   {results.adsK === 0 
+                    ? 'No active ads (Score 1.0)' 
+                    : ignoreEmptyAds 
+                        ? 'Empty slots ignored. Calculated on active ads only.'
+                        : 'Padded with 1.0 for empty slots before the last ad.'
+                   }
                 </p>
             </div>
 
@@ -69,7 +75,11 @@ const NDCGKMetricsCard: React.FC<NDCGKMetricsCardProps> = ({ results }) => {
                     <strong>Organic</strong>: Standard nDCG@k on non-empty items. If no items, score is 0.
                 </li>
                 <li>
-                    <strong>Ads</strong>: nDCG calculated up to the position of the last Ad. Empty slots before the last Ad are treated as perfect matches (1.0). If no ads, score is 1.0.
+                    <strong>Ads</strong>: 
+                    {ignoreEmptyAds 
+                        ? ' Empty slots are ignored. Standard nDCG@k on non-empty ads. If no ads, score is 1.0.'
+                        : ' nDCG calculated up to the position of the last Ad. Empty slots before the last Ad are treated as perfect matches (1.0). If no ads, score is 1.0.'
+                    }
                 </li>
                 <li>
                     <strong>Combined</strong>: Standard nDCG@k on the final Customer View list (non-empty items only).
